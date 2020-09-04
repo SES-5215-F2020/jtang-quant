@@ -21,3 +21,9 @@ output:
 a  <- 5
 a+5
 
+```
+```{r}
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+```
+
