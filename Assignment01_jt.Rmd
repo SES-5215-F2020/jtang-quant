@@ -1,0 +1,116 @@
+---
+title: "Assignment01"
+author: "Jessica Tang"
+date: "9/6/2020"
+output:
+  html_document:
+   toc: true
+   toc_depth: 3
+---
+
+## Housing and Food Security in NY State, by Household
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+I used `data("pums_variables")` to see a dataframe of variables available in PUMS.
+
+I would like to see the proportion and types of households in NY State that are burdened and are on food assistance, to determine the prevalence of this double-barrier situation. Although I am primarily interested in renter-occupied households, I would also potentially like to examine this relationship in owner-occupied households. Other variables for type of household are household language and number of members.
+
+For each renter-occupied and owner-occupied household types, the 4 main situations would be:
+
+* not burdened & not on food assistance
+* not burdened & on food assistance
+* burdened & not on food assistance
+* burdened & on food assistance
+
+```{r libraries}
+library(tidycensus)
+library(tidyverse)
+library(dplyr)
+```
+
+### For Renters
+
+Sample population: Renter-occupied households in NY State
+
+Variables:
+
+1. Tenure (TEN), categorical
+2. Yearly food stamp/Supplemental Nutrition Assistance Program (SNAP) recipiency (FS), categorical
+3. Household language (HHL), categorical
+4. Gross rent as a percentage of household income past 12 months (GRPIP), continuous
+5. Household income (HINCP), continuous
+6. Number of persons in this household (NP), continuous
+
+Number of observations: 60,512
+
+```{r hh_renter_data, results = 'hide'}
+hh_rent_data <- get_pums(variables = c("TEN",
+                                     "FS",
+                                     "HHL",
+                                     "GRPIP",
+                                     "HINCP",
+                                     "NP"),
+                       state = "NY",
+                       year = 2018,
+                       survey = "acs1",
+                       recode = TRUE) %>% 
+  filter(TEN_label == "Rented") %>% 
+  select(TEN_label, FS_label, HHL_label, GRPIP, HINCP, NP)
+```
+
+```{r hh_renter_data display}
+hh_rent_data
+```
+
+### For Homeowners
+
+Sample population: Owner-occupied, non-vacant households in NY State
+
+Variables:
+
+1. Tenure (TEN), categorical
+2. Yearly food stamp/Supplemental Nutrition Assistance Program (SNAP) recipiency (FS), categorical
+3. Household language (HHL), categorical
+4. Selected monthly owner costs as a percentage of household income during the past 12 months (OCPIP), continuous
+5. Household income (HINCP), continuous
+6. Number of persons in this household (NP), continuous
+
+Number of observations: 123,476
+
+```{r hh_own_data, results = 'hide'}
+hh_own_data <- get_pums(variables = c("TEN",
+                                      "FS",
+                                      "HHL",
+                                      "OCPIP",
+                                      "HINCP",
+                                      "NP"),
+                        state = "NY",
+                        year = 2018,
+                        survey = "acs1",
+                        recode = TRUE) %>% 
+  filter(!TEN_label == "Rented",
+         !TEN_label == "Occupied without payment of rent",
+         !TEN_label == "N/A (GQ/vacant)") %>% 
+  select(TEN_label, FS_label, HHL_label, OCPIP, HINCP, NP)
+```
+
+```{r hh_own_data display}
+hh_own_data
+```
+
+### Issues/Questions
+
+It might be nice to incorporate Employment Status (ESR), Race (RAC1P), and/or perhaps other data that seems to only be available at the person level. Would I need to de-generalize the data / turn every Household observation into _x_ number of Person observations, with _x_ equal to the number of members in the Household? Or match the Household (SERIALNO) with every person (SERIALNO and SPORDER)?
+
+If continuing with analyzing owner-occupied data as well, would I need to exclude owners who own their homes "free and clear"? Sometimes, these households are still burdened (i.e., 30% or more of monthly owner costs as a percentage of household income).
+
+### Saving the Datasets
+
+```{r save as csv}
+write_csv(hh_rent_data, "hh_rent_data.csv")
+write_csv(hh_own_data, "hh_own_data.csv")
+```
+
