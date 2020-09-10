@@ -364,13 +364,13 @@ summary {
 
 <h1 class="title toc-ignore">Assignment01</h1>
 <h4 class="author">Jessica Tang</h4>
-<h4 class="date">9/6/2020</h4>
+<h4 class="date">9/10/2020</h4>
 
 </div>
 
 <div id="TOC">
 <ul>
-<li><a href="#housing-and-food-security-in-ny-state-by-household">Housing and Food Security in NY State, by Household</a><ul>
+<li><a href="#housing-and-food-security-in-ny-state-by-household-type">Housing and Food Security in NY State, by Household Type</a><ul>
 <li><a href="#for-renters">For Renters</a></li>
 <li><a href="#for-homeowners">For Homeowners</a></li>
 <li><a href="#issuesquestions">Issues/Questions</a></li>
@@ -379,36 +379,46 @@ summary {
 </ul>
 </div>
 
-<div id="housing-and-food-security-in-ny-state-by-household" class="section level2">
-<h2>Housing and Food Security in NY State, by Household</h2>
-<p>I used <code>data(&quot;pums_variables&quot;)</code> to see a dataframe of variables available in PUMS.</p>
-<p>I would like to see the proportion and types of households in NY State that are burdened and are on food assistance, to determine the prevalence of this double-barrier situation. Although I am primarily interested in renter-occupied households, I would also potentially like to examine this relationship in owner-occupied households. Other variables for type of household are household language and number of members.</p>
-<p>For each renter-occupied and owner-occupied household types, the 4 main situations would be:</p>
-<ul>
-<li>not burdened &amp; not on food assistance</li>
-<li>not burdened &amp; on food assistance</li>
-<li>burdened &amp; not on food assistance</li>
-<li>burdened &amp; on food assistance</li>
-</ul>
+<div id="housing-and-food-security-in-ny-state-by-household-type" class="section level2">
+<h2>Housing and Food Security in NY State, by Household Type</h2>
+<p>I loaded the following libraries:</p>
 <pre class="r"><code>library(tidycensus)
 library(tidyverse)
 library(dplyr)</code></pre>
+<p>(P.S. I used “setup” code from the written tutorial to hide the warnings and messages I get when knitting my markdown file.)</p>
+<p>Then, I used <code>data(&quot;pums_variables&quot;)</code> to see a dataframe of variables available in PUMS.</p>
+<p>I would like to see the proportion and types of households in NY State that are burdened and are on food assistance, to answer the following questions:</p>
+<ol style="list-style-type: decimal">
+<li>What is the prevalence of this double-barrier situation (i.e., housing cost-burdened and on food assistance)?</li>
+<li>Are renter-occupied households more or less likely to be on food assistance than owner-occupied households are, regardless of whether these homeowners own their homes “free and clear” or whether they have a mortgage?</li>
+<li>How does the prevalence of this double-barrier situation vary by the household’s English-speaking ability?</li>
+<li>What is the relationship between rent or owner housing costs, household income, and number of persons in the household? At what rate would income have to increase in order for the household to not be burdened by housing costs, and how does this change as the number of persons in household increases or decreases?</li>
+</ol>
+<p>For each renter-occupied and owner-occupied household types, the 4 main situations would be:</p>
+<ul>
+<li>not burdened (GRPIP or OCPIP is &lt; 30%) &amp; not on food assistance</li>
+<li>not burdened &amp; on food assistance</li>
+<li>burdened (GRPIP or OCPIP is &gt;= 30%) &amp; not on food assistance</li>
+<li>burdened &amp; on food assistance</li>
+</ul>
+<p>with additional variations based on household income, English-speaking ability, and number of persons in household.</p>
+<p><strong>Sample population:</strong> Households in NY State that are renter-occupied or owner-occupied (either “free and clear” or with a mortgage; vacant households are excluded). I excluded households that are “occupied without payment of rent” (e.g., caretakers, superintendents), because I imagine this is a smaller subset of the NY State population as a whole. Plus, housing cost is one of the very variables I would like to examine.</p>
 <div id="for-renters" class="section level3">
 <h3>For Renters</h3>
-<p>Sample population: Renter-occupied households in NY State</p>
 <p>Variables:</p>
 <ol style="list-style-type: decimal">
 <li>Tenure (TEN), categorical</li>
 <li>Yearly food stamp/Supplemental Nutrition Assistance Program (SNAP) recipiency (FS), categorical</li>
-<li>Household language (HHL), categorical</li>
-<li>Gross rent as a percentage of household income past 12 months (GRPIP), continuous</li>
+<li>Limited English-speaking household (LNGI), categorical</li>
+<li>Gross rent as a percentage of household income past 12 months (GRPIP), categorical in the sense that &lt; 30% is non-burdened and &gt;= 30% is burdened</li>
+<li>Gross rent (GRNTP), continuous</li>
 <li>Household income (HINCP), continuous</li>
 <li>Number of persons in this household (NP), continuous</li>
 </ol>
 <p>Number of observations: 60,512</p>
 <pre class="r"><code>hh_rent_data &lt;- get_pums(variables = c(&quot;TEN&quot;,
                                      &quot;FS&quot;,
-                                     &quot;HHL&quot;,
+                                     &quot;LNGI&quot;,
                                      &quot;GRPIP&quot;,
                                      &quot;HINCP&quot;,
                                      &quot;NP&quot;),
@@ -417,39 +427,39 @@ library(dplyr)</code></pre>
                        survey = &quot;acs1&quot;,
                        recode = TRUE) %&gt;% 
   filter(TEN_label == &quot;Rented&quot;) %&gt;% 
-  select(TEN_label, FS_label, HHL_label, GRPIP, HINCP, NP)</code></pre>
+  select(TEN_label, FS_label, LNGI_label, GRPIP, HINCP, NP)</code></pre>
 <pre class="r"><code>hh_rent_data</code></pre>
 <pre><code>## # A tibble: 60,512 x 6
-##    TEN_label FS_label HHL_label                     GRPIP  HINCP    NP
-##    &lt;chr&gt;     &lt;chr&gt;    &lt;chr&gt;                         &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;
-##  1 Rented    Yes      English only                    101    390     4
-##  2 Rented    Yes      English only                    101    390     4
-##  3 Rented    Yes      English only                    101    390     4
-##  4 Rented    Yes      English only                    101    390     4
-##  5 Rented    No       English only                     10  80080     2
-##  6 Rented    No       English only                     10  80080     2
-##  7 Rented    No       English only                     14   9500     1
-##  8 Rented    No       English only                     14 106600     2
-##  9 Rented    No       English only                     14 106600     2
-## 10 Rented    No       Other Indo-European languages    27  80000     4
+##    TEN_label FS_label LNGI_label                              GRPIP  HINCP    NP
+##    &lt;chr&gt;     &lt;chr&gt;    &lt;chr&gt;                                   &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;
+##  1 Rented    Yes      At least one person in the household 1~   101    390     4
+##  2 Rented    Yes      At least one person in the household 1~   101    390     4
+##  3 Rented    Yes      At least one person in the household 1~   101    390     4
+##  4 Rented    Yes      At least one person in the household 1~   101    390     4
+##  5 Rented    No       At least one person in the household 1~    10  80080     2
+##  6 Rented    No       At least one person in the household 1~    10  80080     2
+##  7 Rented    No       At least one person in the household 1~    14   9500     1
+##  8 Rented    No       At least one person in the household 1~    14 106600     2
+##  9 Rented    No       At least one person in the household 1~    14 106600     2
+## 10 Rented    No       At least one person in the household 1~    27  80000     4
 ## # ... with 60,502 more rows</code></pre>
 </div>
 <div id="for-homeowners" class="section level3">
 <h3>For Homeowners</h3>
-<p>Sample population: Owner-occupied, non-vacant households in NY State</p>
 <p>Variables:</p>
 <ol style="list-style-type: decimal">
 <li>Tenure (TEN), categorical</li>
 <li>Yearly food stamp/Supplemental Nutrition Assistance Program (SNAP) recipiency (FS), categorical</li>
-<li>Household language (HHL), categorical</li>
-<li>Selected monthly owner costs as a percentage of household income during the past 12 months (OCPIP), continuous</li>
+<li>Limited English-speaking household (LNGI), categorical</li>
+<li>Selected monthly owner costs as a percentage of household income during the past 12 months (OCPIP), categorical in the sense that &lt; 30% is non-burdened and &gt;= 30% is burdened</li>
+<li>Selected monthly owner costs (SMOCP), continuous</li>
 <li>Household income (HINCP), continuous</li>
 <li>Number of persons in this household (NP), continuous</li>
 </ol>
 <p>Number of observations: 123,476</p>
 <pre class="r"><code>hh_own_data &lt;- get_pums(variables = c(&quot;TEN&quot;,
                                       &quot;FS&quot;,
-                                      &quot;HHL&quot;,
+                                      &quot;LNGI&quot;,
                                       &quot;OCPIP&quot;,
                                       &quot;HINCP&quot;,
                                       &quot;NP&quot;),
@@ -460,27 +470,28 @@ library(dplyr)</code></pre>
   filter(!TEN_label == &quot;Rented&quot;,
          !TEN_label == &quot;Occupied without payment of rent&quot;,
          !TEN_label == &quot;N/A (GQ/vacant)&quot;) %&gt;% 
-  select(TEN_label, FS_label, HHL_label, OCPIP, HINCP, NP)</code></pre>
+  select(TEN_label, FS_label, LNGI_label, OCPIP, HINCP, NP)</code></pre>
 <pre class="r"><code>hh_own_data</code></pre>
 <pre><code>## # A tibble: 123,476 x 6
-##    TEN_label                      FS_label HHL_label          OCPIP  HINCP    NP
-##    &lt;chr&gt;                          &lt;chr&gt;    &lt;chr&gt;              &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;
-##  1 Owned free and clear           No       Other Indo-Europe~     7 153000     2
-##  2 Owned free and clear           No       Other Indo-Europe~     7 153000     2
-##  3 Owned with mortgage or loan (~ No       English only          48  85000     2
-##  4 Owned with mortgage or loan (~ No       English only          48  85000     2
-##  5 Owned with mortgage or loan (~ No       English only          23  71100     1
-##  6 Owned with mortgage or loan (~ No       English only          14 566400     4
-##  7 Owned with mortgage or loan (~ No       English only          14 566400     4
-##  8 Owned with mortgage or loan (~ No       English only          14 566400     4
-##  9 Owned with mortgage or loan (~ No       English only          14 566400     4
-## 10 Owned with mortgage or loan (~ No       English only           9 148400     1
+##    TEN_label             FS_label LNGI_label                  OCPIP  HINCP    NP
+##    &lt;chr&gt;                 &lt;chr&gt;    &lt;chr&gt;                       &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;
+##  1 Owned free and clear  No       At least one person in the~     7 153000     2
+##  2 Owned free and clear  No       At least one person in the~     7 153000     2
+##  3 Owned with mortgage ~ No       At least one person in the~    48  85000     2
+##  4 Owned with mortgage ~ No       At least one person in the~    48  85000     2
+##  5 Owned with mortgage ~ No       At least one person in the~    23  71100     1
+##  6 Owned with mortgage ~ No       At least one person in the~    14 566400     4
+##  7 Owned with mortgage ~ No       At least one person in the~    14 566400     4
+##  8 Owned with mortgage ~ No       At least one person in the~    14 566400     4
+##  9 Owned with mortgage ~ No       At least one person in the~    14 566400     4
+## 10 Owned with mortgage ~ No       At least one person in the~     9 148400     1
 ## # ... with 123,466 more rows</code></pre>
 </div>
 <div id="issuesquestions" class="section level3">
 <h3>Issues/Questions</h3>
-<p>It might be nice to incorporate Employment Status (ESR), Race (RAC1P), and/or perhaps other data that seems to only be available at the person level. Would I need to de-generalize the data / turn every Household observation into <em>x</em> number of Person observations, with <em>x</em> equal to the number of members in the Household? Or match the Household (SERIALNO) with every person (SERIALNO and SPORDER)?</p>
-<p>If continuing with analyzing owner-occupied data as well, would I need to exclude owners who own their homes “free and clear”? Sometimes, these households are still burdened (i.e., 30% or more of monthly owner costs as a percentage of household income).</p>
+<p>The reason I created two datasets is because SMOCP and OCPIP would not apply to renter-occupied households and GRNTP and GRPIP would not apply to owner-occupied households. But perhaps I should eventually combine these two datasets somehow?</p>
+<p>[It might be nice to incorporate Employment Status (ESR), Race (RAC1P), and/or perhaps other data that seems to only be available at the person level. Would I need to de-generalize the data / turn every Household observation into <em>x</em> number of Person observations, with <em>x</em> equal to the number of members in the Household? Or match the Household (SERIALNO) with every person (SERIALNO and SPORDER)?</p>
+<p>However, following Tuesday’s discussion, it may make more sense to stick with household-level analysis and I think I have enough variables to gather interesting conclusions.]</p>
 </div>
 <div id="saving-the-datasets" class="section level3">
 <h3>Saving the Datasets</h3>
