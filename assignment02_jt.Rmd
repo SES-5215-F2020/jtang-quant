@@ -1,0 +1,412 @@
+---
+title: "Assignment02 QUANT"
+author: "Jessica Tang"
+date: "9/15/2020"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## Libraries
+
+```{r libraries}
+library(tidycensus)
+library(tidyverse)
+library(dplyr)
+```
+
+## Dataset
+
+After seeing the histograms of my continuous variables, I applied a few filters to my dataset:
+* Excluding households with incomes more than $150,000 and excluding households that had negative income
+* Excluding households that spend more than 100% of their income on housing costs
+
+Applying the second filter was particularly interesting to me. I noticed that some proportions changed, including:
+* Mean household income increased
+* Proportion of households on food stamps decreased
+* Proportion of households that have at least one person 14 years and over who can speak English increased
+
+Thus, I am not sure if I should continue to exclude or decide to include these households.
+
+In retrospect, I think I should have calculated statistics on my continuous variables (income, housing costs, percentage of income spent on housing costs) separately depending on tenure. I will try to do this before next week.
+
+```{r all_hh, results = 'hide'}
+
+# Getting and Mutating Renter Data
+hh_rent_data <- get_pums(variables = c("SERIALNO",
+                                     "TEN",
+                                     "FS",
+                                     "LNGI",
+                                     "GRNTP",
+                                     "HINCP",
+                                     "GRPIP",
+                                     "NP"),
+                       state = "NY",
+                       year = 2018,
+                       survey = "acs1",
+                       recode = TRUE) %>% 
+  mutate(HC = GRNTP,
+         HCPIP = GRPIP,
+         Burdened = case_when(
+           HCPIP > 30 ~ "Yes",
+           TRUE ~ "No")) %>% 
+  filter(TEN_label == "Rented") %>% 
+  select(SERIALNO,
+         TEN_label,
+         FS_label,
+         LNGI_label,
+         HC,
+         HINCP,
+         HCPIP,
+         Burdened,
+         NP)
+
+# Getting and Mutating Owner Data
+hh_own_data <- get_pums(variables = c("SERIALNO",
+                                      "TEN",
+                                      "FS",
+                                      "LNGI",
+                                      "SMOCP",
+                                      "HINCP",
+                                      "OCPIP",
+                                      "NP"),
+                        state = "NY",
+                        year = 2018,
+                        survey = "acs1",
+                        recode = TRUE) %>% 
+  
+  mutate(HC = SMOCP,
+         HCPIP = OCPIP,
+         Burdened = case_when(OCPIP > 30 ~ "Yes",
+                              TRUE ~ "No")) %>% 
+  
+  filter(!TEN_label == "Rented",
+         !TEN_label == "Occupied without payment of rent",
+         !TEN_label == "N/A (GQ/vacant)") %>% 
+  
+  select(SERIALNO,
+         TEN_label,
+         FS_label,
+         LNGI_label,
+         HC,
+         HINCP,
+         HCPIP,
+         Burdened,
+         NP)
+
+# Combining Renter and Owner Data, then Applying Filters
+
+all_hh <- rbind(hh_rent_data,
+                hh_own_data) %>% 
+  filter(HINCP <= 150000,
+         HINCP >= 0,
+         HCPIP != 101)
+```
+
+## Continuous: Housing Cost (HC)
+
+On average, households in the ACS sample spend $1,437 on housing costs per month. The median amount that people spend is $1,228. This means that there are more people spending < $1,437 on housing costs per month than more.
+
+### Main Statistics
+* Sample Mean: $1,437
+* Sample Median: $1,228
+* Sample Standard Deviation: $947
+* 95-percent Confidence Interval lower limit: $1,431
+* 95-percent Confidence Interval upper limit: $1,442
+* Interquartile Range: Between $774 and $1,851
+
+```{r}
+
+# Mean
+mean(all_hh$HC)
+
+# Standard Deviation
+sd(all_hh$HC)
+
+# Confidence Interval
+conf_int <- t.test(all_hh$HC)
+
+# Center of Confidence Interval
+conf_int$estimate
+
+# Lower Limit
+conf_int$conf.int[1]
+
+# Upper Limit
+conf_int$conf.int[2]
+
+# Interquartile Range
+quantile(all_hh$HC)
+
+```
+
+### Histogram
+```{r, results = 'hide'}
+ggplot (all_hh,
+        
+        aes(x = HC)) +
+  
+  geom_histogram(
+    color = "white",
+    bins = 50) +
+  
+  scale_x_continuous(name = "Housing Cost") +
+  
+  scale_y_continuous(name = "Number of People in Sample") +
+  
+  theme_bw()
+
+```
+
+
+## Continuous: Household Income (HINCP)
+
+On average, households in the ACS sample make $72,380. The median that households make is $69,800, which suggests that there are more people making < $72,380.
+
+### Main Statistics
+* Sample Mean: $72,380
+* Sample Median: $69,800
+* Sample Standard Deviation: $38,656
+* 95-percent Confidence Interval lower limit: $72,170
+* 95-percent Confidence Interval upper limit: $72,590
+* Interquartile Range: Between $40,100 and $102,800
+
+```{r}
+mean(all_hh$HINCP)
+
+sd(all_hh$HINCP)
+
+conf_int <- t.test(all_hh$HINCP)
+
+conf_int$estimate
+
+conf_int$conf.int[1]
+
+conf_int$conf.int[2]
+
+quantile(all_hh$HINCP)
+
+```
+
+### Histogram
+```{r, results = 'hide'}
+ggplot (all_hh,
+        
+        aes(x = HINCP)) +
+  
+  geom_histogram(
+    color = "white",
+    bins = 50) +
+  
+  scale_x_continuous(name = "Household Income") +
+  
+  scale_y_continuous(name = "Number of People in Sample") +
+  
+  theme_bw()
+```
+
+
+## Continuous: Housing Cost as a Percentage of Household Income (HCPIP)
+
+On average, households spend 28.2% of their income on housing costs. The median that households spend is 23%, which suggests that more households spend < 28.2% than > 28.2%.
+
+### Main Statistics
+* Sample Mean: 28.2%
+* Sample Median: 23%
+* Sample Standard Deviation: 19.6%
+* 95-percent Confidence Interval lower limit: 28.07%
+* 95-percent Confidence Interval upper limit: 28.29%
+* Interquartile Range: Between 14% and 36%
+```{r}
+mean(all_hh$HCPIP)
+
+sd(all_hh$HCPIP)
+
+conf_int <- t.test(all_hh$HCPIP)
+
+conf_int$estimate
+
+conf_int$conf.int[1]
+
+conf_int$conf.int[2]
+
+quantile(all_hh$HCPIP)
+```
+
+### Histogram
+```{r, results = 'hide'}
+ggplot (all_hh,
+        
+        aes(x = HCPIP)) +
+  
+  geom_histogram(
+    color = "white",
+    bins = 50) +
+  
+  scale_x_continuous(name = "Housing Cost as a Percentage of Household Income") +
+  
+  scale_y_continuous(name = "Number of People in Sample") +
+  
+  theme_bw()
+```
+
+## Continuous: Number of People in Household
+
+The mean number of people per household is 3.2. The median number of people per household is 3. This means that more households in the sample have > 3 people than < 3 people.
+
+### Main Statistics
+* Sample Mean: 3.20
+* Sample Median: 3
+* Sample Standard Deviation: 1.8
+* 95-percent Confidence Interval lower limit: 3.19
+* 95-percent Confidence Interval upper limit: 3.21
+* Interquartile Range: Between 2 and 4
+```{r}
+mean(all_hh$NP)
+
+sd(all_hh$NP)
+
+conf_int <- t.test(all_hh$NP)
+
+conf_int$estimate
+
+conf_int$conf.int[1]
+
+conf_int$conf.int[2]
+
+quantile(all_hh$NP)
+```
+
+### Histogram
+```{r, results = 'hide'}
+ggplot (all_hh,
+        
+        aes(x = NP)) +
+  
+  geom_histogram(
+    color = "white") +
+  
+  scale_x_continuous(name = "Number of People in Household") +
+  
+  scale_y_continuous(name = "Number of People in Sample") +
+  
+  theme_bw()
+```
+
+
+## Categorical: Tenure (TEN_label)
+
+I may have never thought about the actual number before, but I am fairly surprised that about 25% of households own their homes free and clear. I am interested to see where these households are located in NY State.
+
+### Main Statistics
+* Owned free and clear
+  * 95-percent confident that proportion of people who own their houses free and clear is between 25.4% and 25.9%
+
+* Owned with mortage or loan (include home equity loans)
+  * 95-percent confident that proportion of people who own their homes with a mortgage or loan is between 37.4% and 37.9%
+
+* Rented
+  * 95-percent confident that proportion of people who rent their homes is between 36.4% and 37.0%
+```{r}
+table(all_hh$TEN_label)
+
+table(all_hh$TEN_label) / sum(table(all_hh$TEN_label))
+
+conf_int <- t.test(all_hh$TEN_label == "Owned free and clear")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+
+conf_int <- t.test(all_hh$TEN_label == "Owned with mortgage or loan (include home equity loans)")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+
+conf_int <- t.test(all_hh$TEN_label == "Rented")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+
+```
+
+
+## Categorical: Food Stamps (FS_label)
+
+Same here, interested in the geographical distribution of people on food stamps across NY State.
+
+### Main Statistics
+* Yes - on food stamps
+  * 95-percent confident that the proportion of people on food stamps is between 15% and 15.3%
+
+* No - not on food stamps
+  * 95-percent confident that the proportion of people not on food stamps is between 84.6% and 85.0%
+```{r}
+
+table(all_hh$FS_label)
+
+table(all_hh$FS_label) / sum(table(all_hh$FS_label))
+
+conf_int <- t.test(all_hh$FS_label == "Yes")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+
+conf_int <- t.test(all_hh$FS_label == "No")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+```
+
+
+## Categorical: Housing Cost-Burdened? (Burdened)
+
+I expected more households to be cost-burdened, but again I should have explored these statistics by tenure versus combining different types of households together.
+
+### Main Statistics
+* Yes - Burdened by Housing Cost
+  * 95-percent confident that the proportion of people who are housing cost-burdened is between 33.6% and 34.11%
+
+* No - Not Burdened by Housing Cost
+  * 95-percent confident that the proportion of people who are not housing cost-burdened is between 65.9% and 66.4%
+
+```{r}
+table(all_hh$Burdened)
+
+table(all_hh$Burdened) / sum(table(all_hh$Burdened))
+
+conf_int <- t.test(all_hh$Burdened == "Yes")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+
+conf_int <- t.test(all_hh$Burdened == "No")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+```
+
+
+## Categorical: Household English-Speaking Ability (LNGI_label)
+
+I am not a huge fan of this variable, especially because having one 14-year-old in the family who can speak English "very well" is very different from an entire family who grew up speaking English. This very broad categorization is probably why the statistics are not super revealing.
+
+### Main Statistics
+* At least 1 person in the household 14 and over speaks English only or speaks English 'very well'
+  * 95-percent confident that the percentage of households in this category is between 93.5% and 93.7%
+* No one in the household 14 and over speaks English only or speaks English 'very well'
+  * 95-percent confident that the percentage of households in this category is between 6.3% and 6.5%
+```{r}
+table(all_hh$LNGI_label)
+
+table(all_hh$LNGI_label) / sum(table(all_hh$LNGI_label))
+
+conf_int <- t.test(all_hh$LNGI_label == "At least one person in the household 14 and over speaks English only or speaks English 'very well'")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+
+
+conf_int <- t.test(all_hh$LNGI_label == "No one in the household 14 and over speaks English only or speaks English 'very well'")
+conf_int$conf.int[1]
+conf_int$conf.int[2]
+
+```
+
