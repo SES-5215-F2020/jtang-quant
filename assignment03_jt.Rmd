@@ -13,9 +13,9 @@ output:
 ```{r, message = FALSE}
 library(tidyverse)
 library(ggplot2)
-
-# Did not end up using these:
 library(gridExtra)
+
+# Did not end up using this:
 library(skimr)
 ```
 
