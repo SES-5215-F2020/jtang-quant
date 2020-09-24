@@ -1,0 +1,555 @@
+---
+title: "Assignment03 QUANT"
+author: "jtang"
+date: "9/24/2020"
+output:
+  html_document:
+    toc: TRUE
+    toc_float:
+      collapsed: NO
+---
+
+## Libraries
+```{r, message = FALSE}
+library(tidyverse)
+library(ggplot2)
+
+# Did not end up using these:
+library(gridExtra)
+library(skimr)
+```
+
+## Data
+```{r, message = FALSE}
+all_hh <- read_csv("all_hh.csv") %>% 
+  filter(HINCP > 0,
+         HINCP <= 200000)
+
+hh_rent <- all_hh %>% 
+  filter(TEN_label == "Rented")
+
+hh_own <- all_hh %>% 
+  filter(!TEN_label == "Rented",
+         !TEN_label == "Occupied without payment of rent",
+         !TEN_label == "N/A (GQ/vacant)")
+```
+
+## Notes
+Things I did not get to based on Monday's feedback:
+
+* Overlay scatterplots in different colors and look at Cristina Gonzalez's code for reference
+
+* Explore the `skimr` library, a suggestion from Jennifer Horowitz to see medians within categories... but would that give me the significance of these medians within categories? Is there a two-sample t-test for medians?
+
+* Would I do a chi-square test for two multi-level categorical variables?k
+
+* Need to look into how to rename all strings that say *really long string*. Probably covered in Carole's tutorial somewhere.
+
+* If I were ambitious, I could create a table comparing the strengths of relationships and their significances across variable combinations.
+
+* For chi-square tests, maybe I should write something that calculates difference between observed and expected?
+
+Things I did not get to, period:
+
+* Interpreting TukeyHSD results
+
+Other Notes:
+
+* For relationships between two cont. variables, I evaluated within each of two categories (i.e., between Renter and Owner HHs) and across all HHs. It seems like the correlation for all HHs is almost, if not the exact, average of the correlations of the two categories.
+
+* I stopped doing visualizations early on and tried to focus on the quant side of things even though there were several visualizations in the tutorials... I am not sure if that is okay?
+
+* Maybe I should have excluded people who make negative income because I simply don't know what's going on there / how I would interpret those results.
+
+## I. Two Cont.
+
+### Income, Housing Cost
+
+* 3 buckets: All Households; Renter HHs; Owner HHs
+
+#### Test
+Significant relationships:
+
+* There is a stronger positive correlation between Income and Housing Cost for Rented HHs than for Owner HHs. Neither correlations are particularly strong.
+
+```{r}
+correla_all_hh <- cor.test(all_hh$HC, all_hh$HINCP)
+correla_all_hh
+
+correla_hh_rent <- cor.test(hh_rent$HC, hh_rent$HINCP)
+correla_hh_rent
+
+correla_hh_own <- cor.test(hh_own$HC, hh_own$HINCP)
+correla_hh_own
+```
+
+#### Visualizations
+```{r}
+plot1 <- ggplot(all_hh, aes(x = HINCP, y = HC)) + 
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+plot2 <- ggplot(hh_rent, aes(x = HINCP, y = HC)) +
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+plot3 <- ggplot(hh_own, aes(x = HINCP, y = HC)) +
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+grid.arrange(plot1, plot2, plot3, ncol = 3, nrow = 1)
+```
+
+### Income, Housing Cost as a %
+
+#### Test
+Significant relationships:
+
+* There is a stronger negative correlation between Income and HC as a % of Income for Renter than for Owner HHs.
+
+```{r}
+correla_all_hh <- cor.test(all_hh$HINCP, all_hh$HCPIP)
+correla_all_hh
+
+correla_hh_rent <- cor.test(hh_rent$HINCP, hh_rent$HCPIP)
+correla_hh_rent
+
+correla_hh_own <- cor.test(hh_own$HINCP, hh_own$HCPIP)
+correla_hh_own
+```
+
+#### Visualizations
+```{r}
+plot4 <- ggplot(all_hh, aes(x = HINCP, y = HCPIP)) + 
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+plot5 <- ggplot(hh_rent, aes(x = HINCP, y = HCPIP)) +
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+plot6 <- ggplot(hh_own, aes(x = HINCP, y = HCPIP)) +
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+grid.arrange(plot4, plot5, plot6, ncol = 3, nrow = 1)
+```
+
+
+### No. of People in HH, Income
+
+Significant Relationships:
+
+* All fairly weak correlations. But there is a stronger positive correlation between Income and Number of People in HH for Owner HHs than for Renter HHs. So for Owner HHs, as Number of People in HH increases, Income increases slightly more dramatically.
+
+```{r}
+correla_all_hh <- cor.test(all_hh$NP, all_hh$HINCP)
+correla_all_hh
+
+correla_hh_rent <- cor.test(hh_rent$NP, hh_rent$HINCP)
+correla_hh_rent
+
+correla_hh_own <- cor.test(hh_own$NP, hh_own$HINCP)
+correla_hh_own
+```
+
+```{r}
+plot7<- ggplot(all_hh, aes(x = NP, y = HINCP)) + 
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+plot8 <- ggplot(hh_rent, aes(x = NP, y = HINCP)) +
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+plot9 <- ggplot(hh_own, aes(x = NP, y = HINCP)) +
+            geom_point(alpha = 0.1) +
+            geom_smooth()
+
+grid.arrange(plot7, plot8, plot9, ncol = 3, nrow = 1)
+```
+
+
+### No. of People in HH, Housing Cost
+
+Significant Relationships:
+
+* All fairly weak correlations. There is a slightly stronger positive correlation for Owner HHs than for Renter HHs. In other words, Owner HHs with more people experience a slightly more dramatic rise in Housing Cost than Renter HHs with more people do.
+
+```{r}
+correla_all_hh <- cor.test(all_hh$NP, all_hh$HC)
+correla_all_hh
+
+correla_hh_rent <- cor.test(hh_rent$NP, hh_rent$HC)
+correla_hh_rent
+
+correla_hh_own <- cor.test(hh_own$NP, hh_own$HC)
+correla_hh_own
+```
+
+
+### No. of People in HH, Housing Cost as a %
+
+Significant Relationships:
+
+* There is essentially no correlation between No. of People in HH and HC as a % of Income. The latter does not increase nor decrease that much with the increase or decrease of No. of People in HH.
+
+* I guess the above makes sense. Not sure how the math works out, but there weren't strong correlations for 1) No. of People in HH, Income or for 2) No. of People in HH, Housing Cost. So when we divide Housing Cost into Income, and then compare those proportions to No. of People in HH, any initial correlations essentially disappear?
+
+```{r}
+correla_all_hh <- cor.test(all_hh$NP, all_hh$HCPIP)
+correla_all_hh
+
+correla_hh_rent <- cor.test(hh_rent$NP, hh_rent$HCPIP)
+correla_hh_rent
+
+correla_hh_own <- cor.test(hh_own$NP, hh_own$HCPIP)
+correla_hh_own
+```
+
+### 6. Housing Cost, Housing Cost as %
+
+Significant Relationships:
+
+* There is an okay correlation for Owner HHs between Housing Cost and Housing Cost as % of Income, somewhat higher than for Renter HHs. Thus, as Housing Cost rises for Owner HHs, this rising Housing Cost starts to takes up a greater bulk of HH Income more dramatically than for Renter HHs.
+
+```{r}
+correla_all_hh <- cor.test(all_hh$HC, all_hh$HCPIP)
+correla_all_hh
+
+correla_hh_rent <- cor.test(hh_rent$HC, hh_rent$HCPIP)
+correla_hh_rent
+
+correla_hh_own <- cor.test(hh_own$HC, hh_own$HCPIP)
+correla_hh_own
+```
+
+
+## II. Two Cont., One Binary
+
+### English-lang., Income
+
+Significant Relationships:
+
+* The mean Income of Households with no one speaking English is $52,828  
+
+* The mean Income of Households with at least one person over 14 years old speaking English is $83,304
+
+I am a bit surprised that the non-English HHs have a rather decent mean income--but this is when I would look into `skimr` to see the median income for this category.
+
+```{r}
+difference <- t.test(HINCP ~ LNGI_label == "At least one person in the household 14 and over speaks English only or speaks English 'very well'",
+                    data = all_hh)
+
+difference
+```
+```{r}
+# VIOLIN PLOT HERE
+```
+
+
+### English-lang., Housing Cost
+
+Significant Relationships:
+
+* The mean Housing Cost of Households with no one speaking English is $1,540.
+
+* The mean Housing Cost of Households with at least one person over 14 years old speaking English is $1,583.
+
+I am a bit surprised these means are so close. Perhaps there will be a greater difference if I broke the tests out by Tenure?
+
+```{r}
+difference <- t.test(HC ~ LNGI_label == "At least one person in the household 14 and over speaks English only or speaks English 'very well'",
+                     data = all_hh)
+
+difference
+```
+
+
+### English-lang., Housing Cost as %
+
+Significant Relationships:
+
+* On average, Households where no one speaks English spend 47% of their income on Housing Costs.
+
+* On average, Households where at least one person over 14 years old speaks English spend 30% of their income on Housing Costs.
+
+To be consistent, if I were to break out English lang. and Housing Cost relationships by Tenure, then I should do that here as well.
+
+```{r}
+difference <- t.test(HCPIP ~ LNGI_label == "At least one person in the household 14 and over speaks English only or speaks English 'very well'",
+                     data = all_hh)
+
+difference
+```
+
+
+### English-lang., No. of People in HH
+
+Significant Relationships:
+
+* Households where no one speaks English have an average more no. of members than households where at least one person over 14 years old speaks English.
+
+I am a confused how to interpret this t-test result... does it mean that non-English speaking households are more *likely* to have more family members or that there are more non-English speaking households that have > 3 family members as compared to English-speaking households, such that their mean is pulled slightly upwards by ~0.15 to 3.4?
+
+```{r}
+difference <- t.test(NP ~ LNGI_label == "At least one person in the household 14 and over speaks English only or speaks English 'very well'",
+                     data = all_hh)
+
+difference
+```
+
+### Burdened, Income
+
+Significant Relationships:
+
+* For households that are NOT Housing Cost-Burdened, they have an average income of $100,106.
+
+* For households that ARE Housing Cost-Burdened, they have an average income of $46,465.
+
+* This is another situation where I think looking into median would come in handy, or I exclude households that make, say, over $200,000 per year. It could also be interesting to run this test by Tenure (i.e., make `data = hh_own` and `data = hh_rent`)
+
+```{r}
+difference <- t.test(HINCP ~ Burdened == "Yes",
+                     data = all_hh)
+
+difference
+```
+
+### Burdened, Housing Cost
+
+Significant Relationships:
+
+* For households that are NOT Housing Cost-Burdened, they have an average Housing Cost of $1,345.
+
+* For households that ARE Housing Cost-Burdened, they have an average Housing Cost of $2,020.
+
+Hm, I have to see if median is worth looking into for this relationship. I wonder how many Housing Cost outliers there are and their values.
+
+```{r}
+difference <- t.test(HC ~ Burdened == "Yes",
+                     data = all_hh)
+
+difference
+```
+
+### Burdened, Housing Cost as a %
+
+Significant Relationships:
+
+* For households that are NOT Housing Cost-Burdened, they spend an average of 17% of their Income on Housing Cost.
+
+* For households that ARE Housing Cost-Burdened, they spend an average of 59% of their Income on Housing Cost.
+
+I probably should exclude Households that spend 101% of their Income on Housing Cost? Because I think that number is just a catch-all for anyone who spends over 100%.
+
+```{r}
+difference <- t.test(HCPIP ~ Burdened == "Yes",
+                     data = all_hh)
+
+difference
+```
+
+### Food Stamps, Income
+
+Significant Relationships:
+
+* For households that are NOT on Food Stamps, they have an average Income of $87,814.
+
+* For households that ARE on Food Stamps, they have an average Income of $45,651.
+
+Also would be interesting to look into median here.
+
+```{r}
+difference <- t.test(HINCP ~ FS_label == "Yes",
+                     data = all_hh)
+
+difference
+```
+
+### Food Stamps, Housing Cost
+
+Significant Relationships:
+
+* For households that are NOT on Food Stamps, they have an average Housing Cost of $1,642.
+
+* For households that ARE on Food Stamps, they have an average Housing Cost of $1,241.
+
+The difference is not huge here. I have to compare this with other relationships regarding Housing Cost to gain more insight into what's going on.
+
+```{r}
+difference <- t.test(HC ~ FS_label == "Yes",
+                     data = all_hh)
+
+difference
+```
+
+### Food Stamps, Housing Cost as a %
+
+Significant Relationships:
+
+* For households that are NOT on Food Stamps, they spend an average of 29% of their Income on Housing Costs.
+
+* For households that ARE on Food Stamps, they spend an average of 47% of their Income on Housing Costs.
+
+```{r}
+difference <- t.test(HCPIP ~ FS_label == "Yes",
+                     data = all_hh)
+
+difference
+```
+
+## III. One Cont., One Categ.
+
+I need to rename that really long string for English-lang. and for Tenure.
+
+### Tenure, Income
+
+There is a significant relationship between type of Tenure and Income.
+
+```{r}
+anova <- aov(HINCP ~ TEN_label, data = all_hh)
+
+summary(anova)
+
+
+differences <- TukeyHSD(anova)
+
+as_tibble(cbind(pair = row.names(differences$TEN_label),
+                differences$TEN_label))
+```
+
+### Tenure, Housing Cost
+
+There is a significant relationship between type of Tenure and Housing Cost.
+
+```{r}
+anova <- aov(HC ~ TEN_label, data = all_hh)
+
+summary(anova)
+
+differences <- TukeyHSD(anova)
+
+as_tibble(cbind(pair = row.names(differences$TEN_label),
+                differences$TEN_label))
+```
+
+
+### Tenure, Housing Cost as %
+
+There is a significant relationship between type of Tenure and Housing Cost as a % of Income.
+```{r}
+anova <- aov(HCPIP ~ TEN_label, data = all_hh)
+
+summary(anova)
+
+differences <- TukeyHSD(anova)
+
+as_tibble(cbind(pair = row.names(differences$TEN_label),
+                differences$TEN_label))
+```
+
+
+### Tenure, No. of People in HH
+
+There is a significant relationship between type of Tenure and No. of People in HH.
+```{r}
+anova <- aov(NP ~ TEN_label, data = all_hh)
+
+summary(anova)
+
+differences <- TukeyHSD(anova)
+
+as_tibble(cbind(pair = row.names(differences$TEN_label),
+                differences$TEN_label))
+```
+
+
+## IV. Two Categ.
+
+### Tenure, Food Stamps
+
+Relationships are significant. Strongest for Owned free and clear and No Food Stamps and somewhat strong for Rented and whether or not renter is on Food Stamps.
+
+```{r}
+chi_sq <- chisq.test(all_hh$TEN_label, all_hh$FS_label)
+
+chi_sq
+
+chi_sq$observed
+
+chi_sq$expected
+```
+
+### Tenure, English-lang.
+
+Relationships are significant. There is not really a huge difference between any of the observed and expected values, so I guess one can say... it is significant that these relationships are not that strong?
+
+```{r}
+chi_sq <- chisq.test(all_hh$TEN_label, all_hh$LNGI_label)
+
+chi_sq
+
+chi_sq$observed
+
+chi_sq$expected
+```
+
+### Tenure, Burdened
+
+Relationships are significant. Relationships are all strong except Owned with mortgage and loan and whether or not they are Burdened. I am kind of surprised by this, especially since there is a much stronger relationship for Owned free and clear. I would think "free and clear" means they wouldn't have to worry as much about Housing Costs, but looks like I am wrong.
+
+```{r}
+chi_sq <- chisq.test(all_hh$TEN_label, all_hh$Burdened)
+
+chi_sq
+
+chi_sq$observed
+
+chi_sq$expected
+```
+
+
+### Food Stamps, English-lang.
+
+Relationships are significant. Relationship is strongest for non-English households and Yes on Food Stamps.
+
+```{r}
+chi_sq <- chisq.test(all_hh$FS_label, all_hh$LNGI_label)
+
+chi_sq
+
+chi_sq$observed
+
+chi_sq$expected
+```
+
+
+### Food Stamps, Burdened
+
+Relationships are significant. Relationships are equally strong...? (The differences between observed and expected are the same for every combination.) 
+
+```{r}
+chi_sq <- chisq.test(all_hh$FS_label, all_hh$Burdened)
+
+chi_sq
+
+chi_sq$observed
+
+chi_sq$expected
+```
+
+
+### English-lang., Burdened
+
+Relationships are significant. Relationships are more or less equally strong. Slightly stronger for non-English speaking households and Yes Burdened.
+
+```{r}
+chi_sq <- chisq.test(all_hh$LNGI_label, all_hh$Burdened)
+
+chi_sq
+
+chi_sq$observed
+
+chi_sq$expected
+```
