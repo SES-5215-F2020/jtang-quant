@@ -1,0 +1,190 @@
+---
+title: "Assignment04 QUANT"
+author: "jtang"
+date: "10/05/2020"
+output:
+  html_document:
+    toc: TRUE
+    toc_float:
+      collapsed: NO
+    theme: cosmo
+---
+
+## Libraries
+```{r, message = FALSE}
+library(tidyverse)
+```
+
+## Questions/Notes
+
+* To make fair comparisons, I would have to hold the same independent variables constant / choose the same independent variables across models, right?
+
+* Really unsure about the last 2 independent variables I chose in Models 3 and 4. I'm not sure if I'm allowed to include certain variables as independent when HCPIP essentially = HC/HINCP, and when HCPIP determines BUR.
+
+## Data
+```{r, message = FALSE}
+all_hh <- read_csv("all_hh.csv") %>% 
+  filter(HINCP > 0,
+         HINCP <= 200000,
+         !TEN_label == "Occupied without payment of rent",
+         !TEN_label == "N/A (GQ/vacant") %>% 
+  rename(TEN = TEN_label,
+       FS = FS_label,
+       LNGI = LNGI_label,
+       BUR = Burdened) %>% 
+  mutate(TEN = case_when(TEN == "Owned with mortgage or loan (include home equity loans)" ~ "Owned w. mortgage or loan",
+                         TEN == "Rented" ~ "Rented",
+                         TEN == "Owned free and clear" ~ "Owned fc"),
+         LNGI = case_when(LNGI == "At least one person in the household 14 and over speaks English only or speaks English 'very well'" ~ "At least 1",
+                          LNGI == "No one in the household 14 and over speaks English only or speaks English 'very well'" ~ "No one"))
+```
+
+```{r}
+print(all_hh)
+```
+
+## Evaluating HCPIP
+
+* HCPIP = Housing cost as a percentage of household income
+
+### Model 1
+
+```{r}
+# I guess you cannot predict a categorical variable using lm() because
+# (BUR ~ TEN + FS + LNGI + NP, data = all_hh) did not work
+
+model1 <- lm(HCPIP ~ TEN + FS + LNGI + NP,
+             data = all_hh)
+
+summary(model1)
+```
+
+* Predicts about 15% of the variation of housing costs as a percentage of income, for the homes in this dataset.
+* All relationships are significant.
+
+* **TEN**
+    + TEN = "Owned fc" is the base case.
+    + Owner HHs with a mortgage or loan spend 13% more of their income on housing costs than renter HHs do, when holding all other variables constant.
+    + Renter HHs spend 18% more of their income on housing costs than owner HHs do, when holding all other variables constant.
+* **FS**
+    + FS = "No" is the base case.
+    + HHs on Food Stamps spend 14% more of their income on housing costs than HHs not on Food Stamps.
+
+* **LNGI**
+    + LNGI = Having at least one person speak English is the base case.
+    + HHs with no one speaking English in the household spend 11% more of their income on housing costs than HHs with someone speaking English.
+
+* **NP**
+    + For every 1 additional person in the household, HHs spend 1% less of their income on housing costs.
+    
+
+### Model 2
+
+I transformed data slightly in order to compare "Owned w. mortgage or loan" with "Rented" HHs:
+
+```{r}
+all_hh_2 <- all_hh %>% 
+    mutate(TEN = case_when(TEN == "Owned w. mortgage or loan" ~ "1Owned w. mortgage or loan",
+                           TEN == "Rented" ~ "Rented",
+                           TEN == "Owned fc" ~ "Owned fc"))
+```
+
+Now, time to run the model.
+
+```{r}
+# I don't think I can add HC or HINCP in here, right? Because HCPIP is essentially some form of HC/HINCP,
+# or Housing Cost divided by Houshold Income.
+# On that note, can I add BUR? BUR is dependent on HCPIP such that if BUR >= 30%, then BUR = Yes.
+
+model2 <- lm(HCPIP ~ TEN + FS + LNGI + NP,
+             data = all_hh_2)
+
+summary(model2)
+```
+
+* This model predicts 15% of the variation of household cost as a percentage of household income.
+* All relationships are significant.
+
+* **TEN**
+    + TEN = "1Owned w. mortgage or loan" is now the base case.
+    + Renter HHs spend 5% more of their income on housing costs than Owner HHs with a mortgage or loan do.
+    + Owner free and clear HHs spend 13% less of their income on housing costs than Owner HHs with a mortgage or loan do.
+
+
+## Evaluating HINCP
+
+* HINCP = Household income
+
+### Model 3
+
+```{r}
+# I think it makes slightly more sense to be able to include HC and BUR when doing
+# a regression for HINCP, so I included them.
+# But I am still uncertain, especially about BUR.
+
+model3 <- lm(HINCP ~ TEN + FS + LNGI + NP + HC + BUR,
+             data = all_hh)
+
+summary(model3)
+```
+* This model predicts 59% of the variation of household income. (seems too high...)
+* All relationships **except one** are significant with a p-value < 0.05.
+
+* **TEN**
+    + TEN = "Owned fc" is the base case again.
+    + Owner HHs with a mortgage or loan make $570 less than Owner free and clear HHs, though this relationship has weak significance with a p value of 0.0179.
+    + Renter HHs make $7,900 less than Owner HHs who own their homes free and clear, when holding constant whether the HH is on food stamps, whether the household has someone who can speak English, the number of people in the household, the housing cost, and whether the household is burdened by housing costs.
+
+* **FS**
+    + HHs on Food Stamps make $13,000 less than HHs not on Food Stamps, when holding constant the tenure of the HH, whether the household has someone who can speak English, the number of people in the household, the housing cost, and whether the household is housing cost-burdened.
+
+* **LNGI**
+    + HHs with no one speaking English make $6,600 less than HHs who can speak English, when holding constant the tenure of the HH, whether the household is on Food Stamps, the number of people in the household, and whether the household is housing cost-burdened.
+
+* **HC**
+    + For every dollar increase in Housing Cost, households spend $25 more on their housing costs, when holding constant the tenure of the HH, whether the household is on Food Stamps, whether the household has someone who can speak English, and whether the household is cost-burdened.
+
+* **BUR**
+    + HHs that are housing cost-burdened make $66,000 less than HHs that are not housing cost-burdened, when holding the housing cost constant and other variables constant. <-- **This is the observation that I don't think makes sense**
+
+
+## Evaluating HC
+
+* HC = Housing Cost
+
+### Model 4
+```{r}
+# I think it makes slightly more sense to be able to include HINCP and BUR when doing
+# a regression for HC, so I included them.
+# But I am still uncertain, especially about BUR.
+
+model4 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP + BUR,
+             data = all_hh)
+
+summary(model4)
+```
+
+* This model predicts 55% of variation in housing cost for the households in this dataset. (seems too high also)
+* All relationships are significant.
+
+* **TEN**
+    + TEN = "Owned fc" is the base case.
+    + Owner HHs with a mortgage or loan pay $775 more in housing costs than Owner free and clear HHs, when holding constant whether that HH is on Food Stamps, whether that HH has someone who can speak English, the number of people in that HH, the income of that HH, and whether that HH is housing cost-burdened. <- **Also doesn't quite make sense to me, maybe I should take out BUR?**
+    + Renter HHs pay $388 more in housing costs than Owner free and clear HHs, when holding everything constant that I mentioned ^ above.
+    
+* **FS**
+    + FS = "No" is the base case.
+    + HHs on Food Stamps pay $255 less in housing costs than HHs not on food stamps, when holding constant the tenure of that HH, whether there is someone in that HH who can speak English, the number of people in that HH, the income of that HH, and whether that HH is cost-burdened.
+    
+* **LNGI**
+    + LNGI = "No one" speaks English is the base case.
+    + HHs that have someone who speaks English pay $61 more in housing costs than HHs who do not have someone who speaks English, when holding constant the tenure of that HH, whether that HH is on Food Stamps, the number of people in that HH, the income of that HH, and whether that HH is housing cost-burdened.
+    
+* **NP**
+    + For every additional person in the HH, that HH pays $45 more in housing costs, when holding constant the tenure of that HH, whether the HH is on Food Stamps, whether that HH has someone who can speak English, the income of that HH, and whether that HH is housing cost-burdened.
+
+* **HINCP**
+    + For every additional dollar in income that a HH makes, that HH pays $0.01 more in housing costs, when holding constant the tenure of that HH, whether that HH is on Food Stamps, whether that HH has someone who can speak English, and whether that HH is housing cost-burdened.
+
+* **BUR**
+    + HHs that are housing cost-burdened pay $1,300 more in housing costs than HHs that are not housing-cost burdened, when holding constant the tenure of that HH, whether that HH is on Food Stamps, whether that HH has someone who can speak English, the number of people in that HH, and the income of that HH. <- **unsure about this**
