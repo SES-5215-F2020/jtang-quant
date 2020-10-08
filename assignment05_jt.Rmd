@@ -279,7 +279,7 @@ summary(model6)
 model7 <- lm(HC ~ TEN + FS + LNGI + NP + log(HINCP),
              data = all_hh_2)
 
-summary(model7)
+summary(model7) 
 ```
 
 ### Models 8 and 9
