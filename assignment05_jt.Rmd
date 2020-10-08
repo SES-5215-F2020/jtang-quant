@@ -1,0 +1,455 @@
+---
+title: "Assignment05 QUANT"
+author: "Jessica Tang"
+date: "10/08/2020"
+output:
+  html_document:
+    toc: TRUE
+    toc_float:
+      collapsed: NO
+    theme: cosmo
+---
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 10000)
+```
+
+## Libraries
+```{r, message = FALSE}
+library(tidyverse)
+library(jtools)
+library(interactions)
+library(knitr)
+library(huxtable)
+```
+
+## Note
+
+* The requirements of the assignment are fulfilled in the models I ran to estimate HCPIP. Everything else is additional models I ran to try to look at Housing Cost (HC) and HINCP (Household Income) on their own, before they become HC/HINCP = HCPIP (Housing Cost as a Percentage of Household Income).
+
+## Data
+
+```{r, message = FALSE}
+all_hh <- read_csv("all_hh.csv") %>% 
+  filter(HINCP > 0,
+         HINCP <= 200000,
+         !TEN_label == "Occupied without payment of rent",
+         !TEN_label == "N/A (GQ/vacant") %>% 
+  rename(TEN = TEN_label,
+       FS = FS_label,
+       LNGI = LNGI_label,
+       BUR = Burdened) %>% 
+  mutate(TEN = case_when(TEN == "Owned with mortgage or loan (include home equity loans)" ~ "Owned w. mortgage or loan",
+                         TEN == "Rented" ~ "Rented",
+                         TEN == "Owned free and clear" ~ "Owned fc"),
+         LNGI = case_when(LNGI == "At least one person in the household 14 and over speaks English only or speaks English 'very well'" ~ "At least 1",
+                          LNGI == "No one in the household 14 and over speaks English only or speaks English 'very well'" ~ "No one"))
+```
+
+**Variables**
+
+Continuous
+
+* HINCP = Household Income
+* HC = Housing Cost (original variables GRNTP and SMOCP mutated to be HC)
+* HCPIP = Housing Cost as a Percentage of Household Income (original variables GRPIP and OCPIP mutated to be HCPIP)
+* NP = Number of People in Household
+
+Categorical
+
+* TEN = Tenure
+* FS = Food Stamps
+* LNGI = Language Ability
+* BUR = Burdened or not (a variable I made up from an earlier assignment)
+
+## Research Questions
+
+* Does Housing Cost as a Percentage of Income change for more for rented households on food stamps or owner households on food stamps than for owner free and clear households not on food stamps? (Do Tenure and Food Stamps together have an interactive effect on HCPIP?)
+* Do Households with no English-language ability AND on Food Stamps experience a different HCPIP than Households with English-language ability AND not on Food Stamps?
+* As the Number of People in Households vary along with whether they are on Food Stamps, how does the HCPIP change?
+
+## Basic Linear Reg. Model
+
+### Model 1
+
+This is the same linear regression model, Model 1, from Assignment04. 
+
+```{r}
+model1 <- lm(HCPIP ~ TEN + FS + LNGI + NP,
+             data = all_hh)
+
+summary(model1)
+```
+
+## HCPIP Models: Interaction Terms
+
+### Model 2: FS
+
+```{r}
+# FS (Food Stamps) as interaction term.
+
+model2 <- lm(HCPIP ~ TEN + FS + LNGI + NP +
+               TEN:FS + LNGI:FS + NP:FS,
+            data = all_hh)
+
+summary(model2)
+```
+
+### **Model 3: TEN**
+
+```{r}
+# TEN (Tenure) as interaction term.
+
+model3 <- lm(HCPIP ~ TEN + FS + LNGI + NP +
+               FS:TEN + LNGI:TEN + NP:TEN,
+            data = all_hh)
+
+summary(model3)
+```
+
+### Model 4: LNGI
+
+```{r}
+# LNGI (Language Ability) as interaction term.
+
+model4 <- lm(HCPIP ~ TEN + FS + LNGI + NP +
+               TEN:LNGI + FS:LNGI + NP:LNGI,
+            data = all_hh)
+
+summary(model4)
+```
+
+### Model 5: NP
+
+```{r}
+model5 <- lm(HCPIP ~ TEN + FS + LNGI + NP +
+               TEN:NP + FS:NP + LNGI:NP,
+             data = all_hh)
+
+# Just going to print the (adjusted) R-squared value for this one.
+summary(model5)$adj.r.squared
+```
+
+### **Model Fit**
+
+Thanks to Carole's tutorial for this code.
+
+```{r}
+ModelFit <- tibble(model = c(1, 2, 3, 4, 5),
+                   R_square = c(summary(model1)$adj.r.squared,
+                                summary(model2)$adj.r.squared,
+                                summary(model3)$adj.r.squared,
+                                summary(model4)$adj.r.squared,
+                                summary(model5)$adj.r.squared))
+
+ggplot(ModelFit, aes(x = model, y = R_square)) +
+  geom_line() +
+  scale_x_continuous(name = "",
+                     breaks = breaks <- seq(1, 5, by = 1),
+                     labels = paste("Model", breaks)) +
+  scale_y_continuous(name = "Adjusted R-squared value") +
+  theme_bw()
+```
+
+## **HCPIP Model 3b: Log Trans.**
+
+**Model 3** is the best-fitting model so far. Now I will try to add a log transformation to Number of People in Household (NP) to see if I can get an even better fit.
+
+```{r}
+model3b <- lm(HCPIP ~ TEN + FS + LNGI + log(NP) +
+               FS:TEN + LNGI:TEN + log(NP):TEN,
+            data = all_hh)
+
+summary(model3b)
+```
+
+### Model Fit2
+
+I tried to do a different visualization, not very effectively... but just showing that Model 3b has a better adjusted R-squared value than Model 3 does. So the log transformation on NP was helpful.
+
+```{r}
+ModelFit2 <- tibble(model = c(1, 2),
+                   R_square = c(summary(model3)$adj.r.squared,
+                                summary(model3b)$adj.r.squared))
+
+ggplot(ModelFit2) +
+  geom_point(aes(x = model, y = R_square)) +
+  scale_x_continuous(name = "",
+                     breaks = seq(0, 2, by=1)) +
+  scale_y_continuous(name = "Adjusted R-squared value",
+                     breaks = seq(0, 0.16, by = 0.010)) +
+  labs(caption = "1 = Model 3 \n2 = Model 3b")+
+  theme_bw()
+```
+
+### **Neat Table**
+
+Thanks to Carole's tutorial for this code. This table compares the very first model--a basic linear regression-- with Model 3b, which has a log transformation on NP (Number of People in Household) and TEN (Tenure) as an interaction term.
+
+```{r}
+coeff_names <- c("Own w. mortgage" = "TENOwned w. mortgage or loan",
+                 "Rent" = "TENRented",
+                 "On Food Stamps" = "FSYes",
+                 "No English ability" = "LNGINo one",
+                 "# of People" = "NP",
+                 "# of People (log)" = "log(NP)",
+                 "Interaction: \nmortgage and food stamps" = "TENOwned w. mortgage or loan:FSYes",
+                 "Interaction: \nrented and food stamps" = "TENRented:FSYes",
+                 "Interaction: \nmortgage and no English ability" = "TENOwned w. mortgage or loan:LNGINo one",
+                 "Interaction: \nrented and no English ability" = "TENRented:LNGINo one",
+                 "Interaction: mortgage and # of People (log)" = "TENOwned w. mortgage or loan:log(NP)",
+                 "Interaction: rented and # of People (log)" = "TENRented:log(NP)")
+                 
+
+export_summs(model1, model3b, 
+             error_format = "(p = {p.value})",
+             error_pos = "same",
+             model.names = c("Model 1", "Model 3b"),
+             coefs =  coeff_names)
+```
+
+#### **Observations**
+
+* 156,834 households in New York State analyzed.
+* Compared to Owned-free-and-clear HHs,
+    + Owned-with-mortgage HHs spend 7.5% more of their income on housing costs
+    + Rented HHs spend 14% more of their income on housing costs
+* Households on Food Stamps spend 9.8% more of their income on housing costs than do households not on Food Stamps.
+    + When the household has a mortgage and is on food stamps, that household pays 1.5% more than a household that is on food stamps but owns their house free and clear. BUT this relationship is only significant to a p = 0.01 level.
+    + When the household is being rented and is on food stamps, that household pays 7% more than a household that is on food stamps but owns their house free and clear. That 7% is on top of the 14% the rented household already pays more than an owned free-and-clear household (so 21% more...?).
+* Households that have no English-speaking ability spend 10% more of their income on housing costs than do households that have at least 1 person over 14 years old who can speak English.
+    + Households with a mortgage and no ability to speak English spend 13% more of their income on housing costs than do free-and-clear households with the ability to speak English.
+    + Households that are rented and have no ability to speak English spend 3% less of their income on housing costs than do free-and-clear households with the ability to speak English. Hmm, I wonder why this is.
+* When the number of people in the household is doubled, households spend 8.5% less of their income on housing costs.
+    + When the number of people in a mortgaged household is doubled, this household on average spends 5.4% more of their income on housing costs.
+    + When the number of people in a rented household is doubled, this household on average spends 3.7% more of their income on housing costs (i.e., rent).
+
+### **Visualization**
+
+Took this code from Carole's tutorial. Not sure why a second legend is appearing when I add the label "On Food Stamps?".
+
+```{r}
+cat_plot(model3b, pred = TEN, modx = FS, interval = TRUE) +
+  scale_x_discrete(name = "Tenure") +
+  scale_y_continuous(name = "% of Income Spent on Housing Cost",
+                     breaks = seq(0, 60, by = 5)) +
+  scale_color_discrete(name = "On Food Stamps?")
+```
+
+#### **Observations**
+
+* Housing Cost is Rent for Renter HHs and whatever associated Homeowner Costs as defined by the ACS for Owner HHs.
+* Interesting to see the consistent stagger upwards across tenures. Would be interesting to see how many households are in each combination of categories.
+* Owner free and clear HHs that are not on Food Stamps spend the least % of their income on Housing Costs, at 15%. You can be not housing cost-burdened (i.e., < 30%) and still be on Food Stamps, as evidenced by owner free-and-clear HHs that are on Food Stamps that spend about 25% of their Income on Housing Costs.
+* Owned with mortgage or loan HHs that are not on Food Stamps spend about 30% of their income on Housing Costs. Meanwhile, HHs that are on Food Stamps spend a little over 40% of their income on Housing Costs.
+* Renter HHs can be rent-burdened and still not be on Food Stamps, as seen by how some Renter HHs spend almost 35% of their income on rent. Renter HHs that are rent-burdened and on Food Stamps spend an amazing 50% of their income on their rent.
+
+## HC and HINCP Models
+
+```{r}
+# Making NP categorical
+
+all_hh_2 <- all_hh %>% 
+  mutate(NP = case_when(NP <= 2 ~ "1-2",
+                        NP > 2 & NP <= 4 ~ "3-4 people",
+                        NP > 4 & NP <= 6 ~ "5-6 people",
+                        NP > 6 & NP <= 8 ~ "7-8 people",
+                        NP > 8 ~ "9 or more people"))
+```
+
+### Models 6 and 7
+
+The log-transform for HINCP worsened the model fit for a regression estimating HC. This kind of makes sense, because "plot1" from [assignment03](https://ses-5215-f2020.github.io/jtang-quant/assignment03_jt) shows a pretty straight (vs. curved) line.
+
+* Model 7: When you double a HH's income, their Housing Cost goes up $238
+* Model 6: Meanwhile, for every dollar more of income that is earned, Housing Cost goes up \$0.0056 -- or, more practically, for every \$10,000 more of income, Housing Cost goes up \$5.61.
+
+**Model 6**
+
+```{r}
+model6 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP,
+             data = all_hh_2)
+
+summary(model6)
+```
+
+**Model 7**
+
+```{r}
+model7 <- lm(HC ~ TEN + FS + LNGI + NP + log(HINCP),
+             data = all_hh_2)
+
+summary(model7)
+```
+
+### Models 8 and 9
+
+The log-transform for HC made the model fit for a regression estimating HINCP better (Models 8 and 9), just by about 0.09 more in the R-squared value (so a better fit by 1%).
+
+* Model 9: When you double the Housing Cost for a HH, this corresponds with a $22,419 increase in income.
+* Model 8: Meanwhile, every dollar more of Housing Cost corresponds with a $13.34 increase in income -- or, approximately every \$1,680.58 more of Housing Cost corresponds with a \$22,419 increase in income.
+
+**Model 8**
+
+```{r}
+model8 <- lm(HINCP ~ TEN + FS + LNGI + NP + HC,
+             data = all_hh_2)
+
+summary(model8)
+```
+
+**Model 9**
+
+I tried applying a log transformation to HC but was getting the following error. I think it has something to do with there being too many 0 values in HC, so I decided to filter them out.
+
+```{r, error = TRUE}
+model9 <- lm(HINCP ~ TEN + FS + LNGI + NP + log(HC),
+             data = all_hh_2)
+```
+
+Filtering out the 0s in HC in order to be able to apply a log (I know I would have to go back and apply this filter to my entire dataset):
+
+```{r, error = TRUE}
+all_hh_3 <- all_hh_2 %>% 
+  filter(HC > 0)
+
+model9 <- lm(HINCP ~ TEN + FS + LNGI + NP + log(HC),
+             data = all_hh_3)
+
+summary(model9)
+```
+
+### Model 10
+
+I chose the linear regression model that tries to predict HC, and added TEN as an interaction term.
+
+After TEN as an interaction term to the HC linear regression model, I got my highest R-squared value yet (but I got higher ones in Models 15 and 16, where I added 2 interaction terms instead of 1).
+
+```{r}
+# TEN as interaction term
+model10 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP +
+                FS:TEN + LNGI:TEN + NP:TEN + HINCP:TEN,
+             data = all_hh_2)
+
+summary(model10)
+```
+
+#### Observations
+
+* Compared with Owned free and clear HHs, Owned with mortgage or loan HHs and Renter HHs spend about $600-\$650 more on Housing Costs monthly.
+* HHs on Food Stamps spend about $112 less on Housing Costs monthly than HHs not on Food Stamps.
+    + NOT SIGNIFICANT: Owned with mortgage HHs that are on Food Stamps spend more in Housing Cost than HHs that are not on Food Stamps.
+    + **But**, Renter HHs that are on Food Stamps spend less in Housing Cost than Renter HHs that are not on Food Stamps.
+
+* HHs where no one speaks English spend about $138 more on Housing Costs monthly than HHs where someone can speak English. (hm, **surprising because my bias is that HHs where no one speaks English are disadvantaged and HHs on Food Stamps are disadvantaged, yet they have the opposite relationship with regards to Housing Cost**)
+    + The ability to speak English or lack thereof has a much greater effect on Housing Cost for Owned with mortgage HHs than for Renter HHs, such that Renter HHs where no one speaks English pay less in Housing Cost than Renter HHs that have someone who does speak English. (But need to compare this observation with HCPIP, Housing Cost as a Percentage of Income)
+    
+* HHs with more than 2 people spend more on Housing Costs than do HHs with just 1-2 people, although the amount more spent hovers around $100-150 when the household has >= 7 people or more versus households with anywhere from 3-6 people.
+    + Interaction effects do not seem super groundbreaking. As Number of People in Household increase within Renter HHs and within Owner/Mortgage HHs, there seems to be more or less a steady increase in HC.
+
+* For every 1 dollar more of HH income, Housing Cost decreases by $0.00289. Which means... for every \$10,000 more of HH income, Housing Cost increases by \$28.90 monthly?
+    + Interaction effects on HC are not super different here among tenures.
+    
+### Neat Table
+
+```{r}
+coeff_names <- c("Own w. mortgage" = "TENOwned w. mortgage or loan",
+                 "Rent" = "TENRented",
+                 "On Food Stamps" = "FSYes",
+                 "No English ability" = "LNGINo one",
+                 "3-4 people" = "NP3-4 people",
+                 "5-6 people" = "NP5-6 people",
+                 "7-8 people" = "NP7-8 people",
+                 "9 or more people" = "NP9 or more people",
+                 "Household income" = "HINCP",
+                 "Interaction: \nmortgage and food stamps" = "TENOwned w. mortgage or loan:FSYes",
+                 "Interaction: \nrented and food stamps" = "TENRented:FSYes",
+                 "Interaction: \nmortgage and no English ability" = "TENOwned w. mortgage or loan:LNGINo one",
+                 "Interaction: \nrented and no English ability" = "TENRented:LNGINo one",
+                 "Interaction: \nmortgage and 3-4 people" = "TENOwned w. mortgage or loan:NP3-4 people",
+                 "Interaction: \nrented and 3-4 people" = "TENRented:NP3-4 people",
+                 "Interaction: \nmortgage and 5-6 people" = "TENOwned w. mortgage or loan:NP5-6 people",
+                 "Interaction: \nrented and 5-6 people" = "TENRented:NP5-6 people",
+                 "Interaction: \nmortgage and 7-8 people" = "TENOwned w. mortgage or loan:NP7-8 people",
+                 "Interaction: \nrented and 7-8 people" = "TENRented:NP7-8 people",
+                 "Interaction: \nmortgage and 9 or more people" = "TENOwned w. mortgage or loan:NP9 or more people",
+                 "Interaction: \nrent and 9 or more people" = "TENRented:NP9 or more people",
+                 "Interaction: \nmortgage and HINCP" = "TENOwned w. mortgage or loan:HINCP",
+                 "Interaction: \nrented and HINCP" = "TENRented:HINCP")
+
+export_summs(model6, model10, 
+             error_format = "(p = {p.value})",
+             error_pos = "same",
+             model.names = c("Model 6", "Model 10"),
+             coefs =  coeff_names)
+```
+
+
+### Other Models
+
+Applying other interaction terms to the HC linear regression model just to compare their fits.
+
+```{r}
+# FS as interaction term
+model11 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP +
+                TEN:FS + FS + LNGI:FS + NP:FS + HINCP:FS,
+             data = all_hh_2)
+
+summary(model11)$adj.r.squared
+```
+
+```{r}
+# LNGI as interaction term
+model12 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP +
+                TEN:LNGI + FS:LNGI + LNGI + NP:LNGI + HINCP:LNGI,
+             data = all_hh_2)
+
+summary(model12)$adj.r.squared
+```
+
+```{r}
+# NP as interaction term
+model13 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP +
+                 TEN:NP + FS:NP + LNGI: NP + HINCP:NP,
+               data = all_hh_2)
+
+summary(model13)$adj.r.squared
+```
+
+\
+\
+Not totally sure how I would interpret having a continuous variable as an interaction term. I think I would have to categorize HINCP in order for the estimates to be meaningful:
+
+```{r}
+# HINCP as interaction term
+model14 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP +
+                TEN:HINCP + FS:HINCP + LNGI:HINCP + NP:HINCP + HINCP,
+             data = all_hh_2)
+
+summary(model14)
+```
+
+## Testing out 2 Interaction Terms
+
+### Model 15
+FS and HINCP as interaction terms yields an even higher R-squared (34.1%) for predicting HC.
+
+```{r}
+model15 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP +
+                TEN:FS:HINCP + FS:HINCP + LNGI:FS:HINCP + NP:FS:HINCP + HINCP:FS,
+             data = all_hh_2)
+
+summary(model15)
+```
+
+
+### Model 16
+TEN and FS as interaction terms yield the highest R-squared I have gotten (34.8%) for predicting HC.
+
+```{r}
+model16 <- lm(HC ~ TEN + FS + LNGI + NP + HINCP +
+                TEN:FS + FS:TEN + LNGI:FS:TEN + NP:FS:TEN + HINCP:FS:TEN,
+             data = all_hh_2)
+
+summary(model16)
+```
