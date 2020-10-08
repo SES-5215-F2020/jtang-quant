@@ -242,7 +242,7 @@ cat_plot(model3b, pred = TEN, modx = FS, interval = TRUE) +
 * Interesting to see the consistent stagger upwards across tenures. Would be interesting to see how many households are in each combination of categories.
 * Owner free and clear HHs that are not on Food Stamps spend the least % of their income on Housing Costs, at 15%. You can be not housing cost-burdened (i.e., < 30%) and still be on Food Stamps, as evidenced by owner free-and-clear HHs that are on Food Stamps that spend about 25% of their Income on Housing Costs.
 * Owned with mortgage or loan HHs that are not on Food Stamps spend about 30% of their income on Housing Costs. Meanwhile, HHs that are on Food Stamps spend a little over 40% of their income on Housing Costs.
-* Renter HHs can be rent-burdened and still not be on Food Stamps, as seen by how some Renter HHs spend almost 35% of their income on rent. Renter HHs that are rent-burdened and on Food Stamps spend an amazing 50% of their income on their rent.
+* Renter HHs can be rent-burdened and still not be on Food Stamps, as seen by how some Renter HHs spend almost 35% of their income on rent. Renter HHs that are rent-burdened and on Food Stamps spend 50% of their income on their rent.
 
 ## HC and HINCP Models
 
